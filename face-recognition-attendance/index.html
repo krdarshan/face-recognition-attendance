@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition Attendance System - Demo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <h2>Initializing Face Recognition System</h2>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <p id="loadingStatus">Starting system...</p>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="errorModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>System Error</h3>
+                <button class="modal-close" onclick="closeErrorModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="errorMessage"></p>
+                <div class="error-details">
+                    <button onclick="toggleErrorDetails()">Show Technical Details</button>
+                    <pre id="errorDetails" class="hidden"></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="retryOperation()" class="btn btn-primary">Retry</button>
+                <button onclick="closeErrorModal()" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="hidden">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>🔐 FaceAttend Pro - Demo</h1>
+            </div>
+            <div class="nav-menu">
+                <button onclick="switchMode('attendance')" class="nav-btn active" id="attendanceTab">Attendance</button>
+                <button onclick="switchMode('enrollment')" class="nav-btn" id="enrollmentTab">Enrollment</button>
+                <button onclick="switchMode('management')" class="nav-btn" id="managementTab">Management</button>
+                <button onclick="exportData()" class="nav-btn">Export Data</button>
+            </div>
+        </nav>
+
+        <!-- Attendance Mode -->
+        <div id="attendanceMode" class="mode-container">
+            <div class="main-content">
+                <div class="system-status">
+                    <div class="status-indicator" id="systemStatus">
+                        <span class="status-dot" id="statusDot"></span>
+                        <span id="statusText">System Ready</span>
+                    </div>
+                    <div class="confidence-meter">
+                        <label>Recognition Confidence:</label>
+                        <div class="confidence-bar">
+                            <div class="confidence-fill" id="confidenceFill"></div>
+                        </div>
+                        <span id="confidenceValue">0%</span>
+                    </div>
+                </div>
+
+                <div class="video-section">
+                    <div class="video-container">
+                        <video id="videoElement" autoplay muted playsinline></video>
+                        <canvas id="overlayCanvas"></canvas>
+                        
+                        <!-- Real-time status -->
+                        <div class="realtime-status">
+                            <div id="faceCount" class="status-item">Faces: 0</div>
+                            <div id="recognitionStatus" class="status-item">Ready</div>
+                            <div id="qualityScore" class="status-item">Quality: --</div>
+                        </div>
+
+                        <!-- Demo overlay for face detection simulation -->
+                        <div id="demoOverlay" class="demo-overlay hidden">
+                            <div class="face-box">
+                                <div class="face-label">Demo User</div>
+                                <div class="confidence-label">95.2%</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="controls">
+                        <button id="startSystemBtn" onclick="initializeSystem()" class="btn btn-primary">
+                            🚀 Start Camera
+                        </button>
+                        <button id="captureBtn" onclick="captureAttendance()" class="btn btn-success" disabled>
+                            📸 Mark Attendance
+                        </button>
+                        <button id="stopSystemBtn" onclick="stopSystem()" class="btn btn-danger" disabled>
+                            ⏹️ Stop System
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Recognition Results -->
+                <div id="recognitionResults" class="results-section hidden">
+                    <div class="result-card">
+                        <div class="result-header">
+                            <h3 id="resultTitle">Recognition Result</h3>
+                            <div class="result-confidence" id="resultConfidence"></div>
+                        </div>
+                        <div class="result-body">
+                            <div class="user-profile">
+                                <img id="resultAvatar" class="profile-avatar" alt="User Avatar">
+                                <div class="profile-info">
+                                    <h4 id="resultName">Unknown User</h4>
+                                    <p id="resultDetails">No match found</p>
+                                    <div class="attendance-info">
+                                        <span id="attendanceTime"></span>
+                                        <span id="attendanceDate"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Attendance Feed -->
+            <div class="sidebar">
+                <div class="attendance-feed">
+                    <h3>Live Attendance Feed</h3>
+                    <div class="feed-stats">
+                        <div class="stat-item">
+                            <span class="stat-value" id="todayCount">0</span>
+                            <span class="stat-label">Today</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="totalUsers">0</span>
+                            <span class="stat-label">Total Users</span>
+                        </div>
+                    </div>
+                    <div id="attendanceFeed" class="feed-list">
+                        <!-- Sample data will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Enrollment Mode -->
+        <div id="enrollmentMode" class="mode-container hidden">
+            <div class="enrollment-container">
+                <h2>User Enrollment</h2>
+                <div class="enrollment-form">
+                    <div class="form-section">
+                        <h3>User Information</h3>
+                        <form id="userForm">
+                            <div class="form-group">
+                                <label for="userName">Full Name *</label>
+                                <input type="text" id="userName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="userEmail">Email *</label>
+                                <input type="email" id="userEmail" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="userDepartment">Department *</label>
+                                <select id="userDepartment" required>
+                                    <option value="">Select Department</option>
+                                    <option value="Engineering">Engineering</option>
+                                    <option value="Marketing">Marketing</option>
+                                    <option value="HR">Human Resources</option>
+                                    <option value="Finance">Finance</option>
+                                    <option value="Operations">Operations</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="userRole">Role</label>
+                                <input type="text" id="userRole" placeholder="e.g., Software Engineer">
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="form-section">
+                        <h3>Face Enrollment (Demo)</h3>
+                        <div class="enrollment-video">
+                            <video id="enrollmentVideo" autoplay muted playsinline></video>
+                            <div id="enrollmentOverlay" class="enrollment-overlay">
+                                <div class="enrollment-guide">
+                                    <p>Position your face in the center</p>
+                                    <div class="face-guide"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="enrollment-progress">
+                            <div class="progress-info">
+                                <span>Samples Collected: <span id="sampleCount">0</span>/5</span>
+                                <span>Quality: <span id="enrollmentQuality">--</span></span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="enrollmentProgress"></div>
+                            </div>
+                        </div>
+
+                        <div class="enrollment-controls">
+                            <button onclick="startEnrollment()" id="startEnrollmentBtn" class="btn btn-primary">
+                                Start Enrollment
+                            </button>
+                            <button onclick="captureEnrollmentSample()" id="captureEnrollmentBtn" class="btn btn-success" disabled>
+                                Capture Sample
+                            </button>
+                            <button onclick="completeEnrollment()" id="completeEnrollmentBtn" class="btn btn-primary" disabled>
+                                Complete Enrollment
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Management Mode -->
+        <div id="managementMode" class="mode-container hidden">
+            <div class="management-container">
+                <h2>User Management</h2>
+                
+                <div class="management-controls">
+                    <div class="search-section">
+                        <input type="text" id="searchUsers" placeholder="Search users..." onkeyup="searchUsers()">
+                        <button onclick="refreshUserList()" class="btn btn-secondary">Refresh</button>
+                    </div>
+                    
+                    <div class="filter-section">
+                        <select id="departmentFilter" onchange="filterUsers()">
+                            <option value="">All Departments</option>
+                            <option value="Engineering">Engineering</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="HR">Human Resources</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Operations">Operations</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="user-list">
+                    <table id="userTable">
+                        <thead>
+                            <tr>
+                                <th>Avatar</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Department</th>
+                                <th>Last Seen</th>
+                                <th>Total Attendance</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script src="demo-app.js"></script>
+</body>
+</html>
